@@ -1,3 +1,12 @@
+---
+title: Code Review Env
+emoji: 🔍
+colorFrom: blue
+colorTo: purple
+sdk: docker
+pinned: false
+---
+
 # 🔍 Code Review Environment for LLM Agents
 
 **An OpenEnv-compatible reinforcement learning environment where AI agents learn to review code like senior engineers.**
