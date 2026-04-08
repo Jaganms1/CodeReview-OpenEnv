@@ -1,0 +1,139 @@
+# openenv.yaml — OpenEnv environment configuration
+# Code Review Environment for LLM Agents
+
+name: code-review-env
+version: "1.0.0"
+description: >
+  An OpenEnv-compatible reinforcement learning environment where an LLM agent
+  acts as a code reviewer. The agent identifies bugs, assigns severity levels,
+  and suggests fixes across increasingly complex real-world code scenarios.
+
+author: "Code Review RL Team"
+license: "MIT"
+
+# ---------------------------------------------------------------------------
+# Environment metadata
+# ---------------------------------------------------------------------------
+environment:
+  entry_point: "inference.py"
+  env_class: "env:CodeReviewEnv"
+  language: "python"
+  python_version: ">=3.11"
+
+# ---------------------------------------------------------------------------
+# Required environment variables
+# ---------------------------------------------------------------------------
+env_vars:
+  - name: HF_TOKEN
+    required: true
+    description: "Hugging Face API token for model access"
+  - name: API_BASE_URL
+    required: false
+    default: "https://api.openai.com/v1"
+    description: "Base URL for the OpenAI-compatible inference API"
+  - name: MODEL_NAME
+    required: false
+    default: "gpt-4o"
+    description: "Model identifier to use for inference"
+
+# ---------------------------------------------------------------------------
+# Task definitions
+# ---------------------------------------------------------------------------
+tasks:
+  - id: easy_offbyone
+    name: "Sliding Window Off-by-One"
+    difficulty: easy
+    steps: 1
+    description: >
+      Single function with an off-by-one error in a sliding window algorithm.
+      Agent must identify the bug, assign severity, and suggest a fix.
+
+  - id: medium_auth
+    name: "Authentication Module Review"
+    difficulty: medium
+    steps: 3
+    description: >
+      Multi-function authentication module with SQL injection, weak password
+      hashing, and missing permission checks. Agent reviews each issue in
+      separate steps with partial credit.
+
+  - id: hard_pr_review
+    name: "Payment Gateway PR Review"
+    difficulty: hard
+    steps: 3
+    description: >
+      Full pull request review of a payment processing endpoint. Includes
+      auth bypass, credential exposure, IDOR, missing validation, and design
+      issues. Agent performs security audit, edge-case analysis, and writes
+      a professional review comment.
+
+# ---------------------------------------------------------------------------
+# Observation schema
+# ---------------------------------------------------------------------------
+observation:
+  type: object
+  properties:
+    task_name:
+      type: string
+      description: "Human-readable name of the current task"
+    code_snippet:
+      type: string
+      description: "The code under review"
+    instructions:
+      type: string
+      description: "Step-specific instructions for the agent"
+    step:
+      type: integer
+      description: "Current step number (1-indexed)"
+    total_steps:
+      type: integer
+      description: "Total number of steps in this task"
+
+# ---------------------------------------------------------------------------
+# Action schema
+# ---------------------------------------------------------------------------
+action:
+  type: object
+  required:
+    - bug_description
+    - severity
+    - suggested_fix
+  properties:
+    bug_description:
+      type: string
+      description: "Description of the identified bug or vulnerability"
+    severity:
+      type: string
+      enum: [low, medium, high, critical]
+      description: "Severity level of the identified issue"
+    suggested_fix:
+      type: string
+      description: "Concrete suggestion for fixing the issue"
+
+# ---------------------------------------------------------------------------
+# Reward configuration
+# ---------------------------------------------------------------------------
+reward:
+  type: float
+  range: [0.0, 1.0]
+  components:
+    - name: bug_detection
+      weight: 0.50
+      description: "Keyword-based match against ground-truth bug descriptions"
+    - name: severity_accuracy
+      weight: 0.20
+      description: "Closeness of predicted severity to expected severity"
+    - name: fix_relevance
+      weight: 0.30
+      description: "Keyword-based match on the quality of the suggested fix"
+  step_penalty: 0.02
+  strategy: "per_step"
+  aggregation: "mean"
+
+# ---------------------------------------------------------------------------
+# Docker / deployment
+# ---------------------------------------------------------------------------
+docker:
+  base_image: "python:3.11-slim"
+  dockerfile: "Dockerfile"
+  entrypoint: "python inference.py"
