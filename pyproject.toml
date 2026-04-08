@@ -17,10 +17,13 @@ dependencies = [
     "pyyaml>=6.0",
     "fastapi>=0.111.0",
     "uvicorn[standard]>=0.30.0",
+    "openenv-core>=0.2.0",
 ]
 
 [project.scripts]
 code-review-env = "inference:run_inference"
+server = "server.app:main"
 
 [tool.setuptools]
-py-modules = ["inference", "env", "tasks", "graders", "server"]
+py-modules = ["inference", "env", "tasks", "graders"]
+packages = ["server"]
