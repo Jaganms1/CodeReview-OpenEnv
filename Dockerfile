@@ -28,6 +28,9 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # ---------------------------------------------------------------------------
 COPY . .
 
+# Make startup script executable
+RUN chmod +x /app/start.sh
+
 # Switch to non-root user
 USER appuser
 
@@ -40,4 +43,4 @@ HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
-ENTRYPOINT ["python", "inference.py"]
+ENTRYPOINT ["/bin/bash", "/app/start.sh"]
