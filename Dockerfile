@@ -1,7 +1,7 @@
 # =============================================================================
 # Dockerfile — Code Review Environment for LLM Agents
 # =============================================================================
-# Multi-stage-ready, minimal image for production deployment.
+# Production image with FastAPI server for OpenEnv compatibility.
 # =============================================================================
 
 FROM python:3.11-slim AS base
@@ -34,11 +34,14 @@ RUN chmod +x /app/start.sh
 # Switch to non-root user
 USER appuser
 
+# Expose the server port (HF Spaces uses 7860)
+EXPOSE 7860
+
 # ---------------------------------------------------------------------------
 # Health check
 # ---------------------------------------------------------------------------
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
-    CMD python -c "import env; print('OK')" || exit 1
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:7860/health')" || exit 1
 
 # ---------------------------------------------------------------------------
 # Entry point
