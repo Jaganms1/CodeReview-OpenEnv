@@ -46,4 +46,4 @@ HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
 # ---------------------------------------------------------------------------
 # Entry point — run server.py directly (avoids server/ package name conflict)
 # ---------------------------------------------------------------------------
-CMD ["python", "server.py"]
+CMD ["python", "app.py"]
