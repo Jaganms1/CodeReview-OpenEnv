@@ -256,6 +256,15 @@ async def list_tasks():
 if __name__ == "__main__":
     import uvicorn
 
-    port = int(os.environ.get("PORT", 8000))
+    port = int(os.environ.get("PORT", 7860))
     logger.info(f"Starting Code Review Environment server on port {port}")
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    try:
+        uvicorn.run(app, host="0.0.0.0", port=port)
+    except OSError as e:
+        # Port already in use — try alternative port (for validator environments)
+        if "address already in use" in str(e).lower():
+            alt_port = 8000
+            logger.warning(f"Port {port} in use, trying {alt_port}...")
+            uvicorn.run(app, host="0.0.0.0", port=alt_port)
+        else:
+            raise

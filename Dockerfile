@@ -34,14 +34,14 @@ RUN chmod +x /app/start.sh
 # Switch to non-root user
 USER appuser
 
-# Expose the server port (OpenEnv standard: 8000 internal, 7860 mapped by HF)
-EXPOSE 8000
+# Expose the server port (HF Spaces uses 7860)
+EXPOSE 7860
 
 # ---------------------------------------------------------------------------
 # Health check
 # ---------------------------------------------------------------------------
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:7860/health')" || exit 1
 
 # ---------------------------------------------------------------------------
 # Entry point — run server.py directly (avoids server/ package name conflict)

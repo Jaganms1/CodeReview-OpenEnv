@@ -136,5 +136,5 @@ reward:
 docker:
   base_image: "python:3.11-slim"
   dockerfile: "Dockerfile"
-  port: 8000
+  port: 7860
   entrypoint: "python server.py"
