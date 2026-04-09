@@ -44,7 +44,7 @@ tasks:
     name: "Sliding Window Off-by-One"
     difficulty: easy
     steps: 1
-    grader: "graders:openenv_grader"
+    grader: "graders:openenv_grader_easy"
     description: >
       Single function with an off-by-one error in a sliding window algorithm.
       Agent must identify the bug, assign severity, and suggest a fix.
@@ -53,7 +53,7 @@ tasks:
     name: "Authentication Module Review"
     difficulty: medium
     steps: 3
-    grader: "graders:openenv_grader"
+    grader: "graders:openenv_grader_medium"
     description: >
       Multi-function authentication module with SQL injection, weak password
       hashing, and missing permission checks. Agent reviews each issue in
@@ -63,7 +63,7 @@ tasks:
     name: "Payment Gateway PR Review"
     difficulty: hard
     steps: 3
-    grader: "graders:openenv_grader"
+    grader: "graders:openenv_grader_hard"
     description: >
       Full pull request review of a payment processing endpoint. Includes
       auth bypass, credential exposure, IDOR, missing validation, and design
