@@ -147,6 +147,13 @@ def grade_action(
     )
     reward = max(0.0, min(1.0, raw - penalty))
 
+    # Validator requires scores strictly in (0, 1) — clamp to open interval
+    EPSILON = 0.01
+    if reward <= 0.0:
+        reward = EPSILON
+    elif reward >= 1.0:
+        reward = 1.0 - EPSILON
+
     # --- 4. Reason string ----------------------------------------------------
     reasons = []
     if detection_score > 0:
@@ -191,5 +198,9 @@ def grade_episode(
 def compute_episode_reward(results: List[GradeResult]) -> float:
     """Return the mean reward across all steps of an episode."""
     if not results:
-        return 0.0
-    return round(sum(r.reward for r in results) / len(results), 4)
+        return 0.01  # Validator requires strictly > 0
+    mean = sum(r.reward for r in results) / len(results)
+    # Clamp to open interval (0, 1)
+    mean = max(0.01, min(0.99, mean))
+    return round(mean, 4)
+
