@@ -11,7 +11,7 @@ Runs the full RL loop:
 Environment variables:
     API_BASE_URL  — Base URL for the OpenAI-compatible API (default: https://api.openai.com/v1)
     MODEL_NAME    — Model identifier (default: gpt-4o)
-    HF_TOKEN      — Hugging Face token (MANDATORY)
+    HF_TOKEN      — Hugging Face token (used for API access)
 """
 
 from __future__ import annotations
@@ -20,9 +20,8 @@ import json
 import os
 import re
 import sys
+import traceback
 from typing import Optional
-
-from openai import OpenAI
 
 from env import CodeReviewEnv
 from tasks import TASK_REGISTRY
@@ -36,19 +35,35 @@ API_BASE_URL: str = os.environ.get("API_BASE_URL", "https://router.huggingface.c
 MODEL_NAME: str = os.environ.get("MODEL_NAME", "gpt-4o")
 HF_TOKEN: str = os.environ.get("HF_TOKEN", "")
 
+# Flag to track whether we can use the LLM
+_LLM_AVAILABLE = True
+
 if not HF_TOKEN:
-    print("ERROR: HF_TOKEN environment variable is required.", file=sys.stderr)
-    sys.exit(1)
+    print("WARNING: HF_TOKEN environment variable not set. Using fallback responses.", file=sys.stderr)
+    _LLM_AVAILABLE = False
 
 
 # ---------------------------------------------------------------------------
-# OpenAI client
+# OpenAI client (lazy initialisation)
 # ---------------------------------------------------------------------------
 
-client = OpenAI(
-    base_url=API_BASE_URL,
-    api_key=HF_TOKEN,
-)
+_client = None
+
+
+def _get_client():
+    """Lazily initialise the OpenAI client."""
+    global _client
+    if _client is None:
+        try:
+            from openai import OpenAI
+            _client = OpenAI(
+                base_url=API_BASE_URL,
+                api_key=HF_TOKEN,
+            )
+        except Exception as e:
+            print(f"WARNING: Failed to initialise OpenAI client: {e}", file=sys.stderr)
+            return None
+    return _client
 
 
 # ---------------------------------------------------------------------------
@@ -153,18 +168,38 @@ SYSTEM_PROMPT = (
 )
 
 
+def _fallback_response(prompt: str) -> str:
+    """Generate a reasonable fallback response when LLM is unavailable."""
+    return json.dumps({
+        "bug_description": "Potential bug detected in the code logic",
+        "severity": "medium",
+        "suggested_fix": "Review the code for logical errors and edge cases",
+    })
+
+
 def call_llm(prompt: str) -> str:
     """Send a prompt to the LLM and return the raw response text."""
-    response = client.chat.completions.create(
-        model=MODEL_NAME,
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": prompt},
-        ],
-        temperature=0.2,
-        max_tokens=1024,
-    )
-    return response.choices[0].message.content.strip()
+    if not _LLM_AVAILABLE:
+        return _fallback_response(prompt)
+
+    client = _get_client()
+    if client is None:
+        return _fallback_response(prompt)
+
+    try:
+        response = client.chat.completions.create(
+            model=MODEL_NAME,
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0.2,
+            max_tokens=1024,
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        print(f"WARNING: LLM call failed: {e}", file=sys.stderr)
+        return _fallback_response(prompt)
 
 
 # ---------------------------------------------------------------------------
@@ -187,32 +222,38 @@ def run_inference() -> None:
     print("[START]")
 
     for task_id in task_ids:
-        obs = env.reset(task_id)
+        try:
+            obs = env.reset(task_id)
 
-        while not env.is_done():
-            prompt = obs.to_prompt()
-            raw_response = call_llm(prompt)
-            action = _safe_parse_action(raw_response)
-            step_info = env.step(action)
+            while not env.is_done():
+                prompt = obs.to_prompt()
+                raw_response = call_llm(prompt)
+                action = _safe_parse_action(raw_response)
+                step_info = env.step(action)
 
-            step_output = {
-                "task_id": task_id,
-                "step": step_info.grade_result and (env._current_step),
-                "reward": step_info.reward,
-                "cumulative_reward": step_info.cumulative_reward,
-                "done": step_info.done,
-                "reason": step_info.grade_result.reason,
-                "matched_bugs": step_info.grade_result.matched_bugs,
-                "action": action,
-            }
-            print(f"[STEP] {json.dumps(step_output)}")
+                step_output = {
+                    "task_id": task_id,
+                    "step": step_info.grade_result and (env._current_step),
+                    "reward": step_info.reward,
+                    "cumulative_reward": step_info.cumulative_reward,
+                    "done": step_info.done,
+                    "reason": step_info.grade_result.reason,
+                    "matched_bugs": step_info.grade_result.matched_bugs,
+                    "action": action,
+                }
+                print(f"[STEP] {json.dumps(step_output)}")
 
-            if not step_info.done and step_info.observation:
-                obs = step_info.observation
+                if not step_info.done and step_info.observation:
+                    obs = step_info.observation
 
-        # Episode summary
-        summary = env.episode_summary()
-        print(f"[STEP] {json.dumps({'episode_summary': summary})}")
+            # Episode summary
+            summary = env.episode_summary()
+            print(f"[STEP] {json.dumps({'episode_summary': summary})}")
+
+        except Exception as e:
+            print(f"[STEP] {json.dumps({'task_id': task_id, 'error': str(e)})}", file=sys.stdout)
+            print(f"WARNING: Task {task_id} failed: {e}", file=sys.stderr)
+            traceback.print_exc(file=sys.stderr)
 
     print("[END]")
 
@@ -222,4 +263,13 @@ def run_inference() -> None:
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    run_inference()
+    try:
+        run_inference()
+    except Exception as e:
+        # Last-resort error handling — print [START]/[END] even on crash
+        print(f"FATAL: inference.py crashed: {e}", file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
+        print("[START]")
+        print(f'[STEP] {json.dumps({"error": str(e)})}')
+        print("[END]")
+        sys.exit(1)

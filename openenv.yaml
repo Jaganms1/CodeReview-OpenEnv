@@ -136,4 +136,5 @@ reward:
 docker:
   base_image: "python:3.11-slim"
   dockerfile: "Dockerfile"
-  entrypoint: "python inference.py"
+  port: 8000
+  entrypoint: "python server.py"
