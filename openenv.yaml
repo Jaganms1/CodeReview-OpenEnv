@@ -37,13 +37,14 @@ env_vars:
     description: "Model identifier to use for inference"
 
 # ---------------------------------------------------------------------------
-# Task definitions
+# Task definitions — each task MUST have a `grader` field
 # ---------------------------------------------------------------------------
 tasks:
   - id: easy_offbyone
     name: "Sliding Window Off-by-One"
     difficulty: easy
     steps: 1
+    grader: "graders:grade_action"
     description: >
       Single function with an off-by-one error in a sliding window algorithm.
       Agent must identify the bug, assign severity, and suggest a fix.
@@ -52,6 +53,7 @@ tasks:
     name: "Authentication Module Review"
     difficulty: medium
     steps: 3
+    grader: "graders:grade_action"
     description: >
       Multi-function authentication module with SQL injection, weak password
       hashing, and missing permission checks. Agent reviews each issue in
@@ -61,6 +63,7 @@ tasks:
     name: "Payment Gateway PR Review"
     difficulty: hard
     steps: 3
+    grader: "graders:grade_action"
     description: >
       Full pull request review of a payment processing endpoint. Includes
       auth bypass, credential exposure, IDOR, missing validation, and design
@@ -115,7 +118,7 @@ action:
 # ---------------------------------------------------------------------------
 reward:
   type: float
-  range: [0.0, 1.0]
+  range: [0.01, 0.99]
   components:
     - name: bug_detection
       weight: 0.50
